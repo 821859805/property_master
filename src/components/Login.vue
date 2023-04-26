@@ -127,19 +127,21 @@ export default {
         },
         login() {
             // 登录预验证
-            this.$refs.loginFormRef.validate(async valid => {//异步请求方法
-                if (!valid) return;//预验证验证失败
-                console.log(this.loginForm);
-                loginApi(this.loginForm).then(res=>{
-                    console.log(res);
-                    //登录成功把token放到sessionStorage中
-                    window.sessionStorage.setItem('token',res.token);
-                    router.push('/familyHome');
-                }).catch(err=>{
-                    console.log(err);
-                });
+            // this.$refs.loginFormRef.validate(async valid => {//异步请求方法
+            //     if (!valid) return;//预验证验证失败
+            //     console.log(this.loginForm);
+            //     loginApi(this.loginForm).then(res=>{
+            //         console.log(res);
+            //         //登录成功把token放到sessionStorage中
+            //         window.sessionStorage.setItem('token',res.token);
+            //         router.push('/ownerHome');
+            //     }).catch(err=>{
+            //         console.log(err);
+            //     });
                 
-            });
+            // });
+
+            router.push('/adminHome');
 
         },
         register() {

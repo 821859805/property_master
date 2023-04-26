@@ -6,16 +6,50 @@ import '../assets/css/global.css'
 Vue.use(VueRouter)
 
 const Login = () => import('../components/Login.vue')
-const familyHome = () => import('../components/family/familyHome.vue')
+const ownerHome = () => import('../components/owner/ownerHome.vue')
+const ownerInfo = () => import('../components/owner/ownerInfo.vue')
+const complaintInfo = () => import('../components/owner/complaintInfo.vue')
+const repairInfo = () => import('../components/owner/repairInfo.vue')
+const alterPwd = () => import('../components/owner/alterPwd.vue')
+const payInfo = () =>import('../components/owner/payInfo.vue')
 const adminHome = () => import('../components/admin/adminHome.vue')
+const complaintAdmin = () => import('../components/admin/basicModule/complaintAdmin.vue')
+const feeAdmin = () => import('../components/admin/basicModule/feeAdmin.vue')
+const repairAdmin = () => import('../components/admin/basicModule/repairAdmin.vue')
+const buildingAdmin = () => import('../components/admin/extendModule/buildingAdmin.vue')
+const ownerAdmin = () => import('../components/admin/basicModule/ownerAdmin.vue')
+const parkingAdmin = () => import('../components/admin/extendModule/parkingAdmin.vue')
+const userInfo = () =>import('../components/admin/extendModule/userInfo.vue')
+
 
 const router = new VueRouter({
   routes: [
     // { path: '/', redirect: '/login' },   //当用户访问根路径时，路由到Login.vue界面
-    {path:'/',component: familyHome},
+    { path: '/', component: Login },
     { path: '/login', component: Login },   //当用户访问login时，路由到Login.vue界面
-    { path: '/familyHome', component: familyHome },
-    { path: '/adminHome', component: adminHome }
+    {
+      path: '/ownerHome', component: ownerHome,   //访问主页
+      redirect: '/ownerInfo',                      //访问主页时，自动重定向到ownerInfo.vue
+      children: [
+        { path: '/alterPwd', component: alterPwd },
+        { path: '/ownerInfo', component: ownerInfo} ,
+        { path: '/repairInfo', component: repairInfo },
+        { path: '/complaintInfo', component: complaintInfo },
+        { path: '/payInfo', component: payInfo }
+      ]
+    },
+    { path: '/adminHome', component: adminHome, 
+      redirect: '/feeAdmin',
+      children:[
+        {path: '/feeAdmin',component: feeAdmin},
+        {path: '/complaintAdmin',component: complaintAdmin},
+        {path: '/repairAdmin',component: repairAdmin},
+        {path: '/buildingAdmin',component: buildingAdmin},
+        {path: '/ownerAdmin',component: ownerAdmin},
+        {path: '/parkingAdmin',component: parkingAdmin},
+        {path: '/userInfo',component: userInfo},
+      ]
+    },
   ]
 })
 

@@ -7,5 +7,7 @@ import {get,post} from './http'
 
 export const loginApi = p => post('/login',p);//登录接口
 
+export const alterPassword = p => post('/alterPassword',p);//修改密码
+
 
 

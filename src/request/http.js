@@ -33,7 +33,6 @@ axios.interceptors.request.use(config => {
 axios.interceptors.response.use(response => {
     // 2xx 的状态码都会触发该函数
     // 对响应数据做点什么
-    console.log(response);
     if (response.status === 200) {    //只有200才是成功        
         return Promise.resolve(response);
     } else {
@@ -42,7 +41,6 @@ axios.interceptors.response.use(response => {
 }, error => {
     // 对不是2xx的状态码触发该函数
     // 对响应错误做点什么
-    console.log(error);
     if (error.response.status) {
         switch (error.response.status) {
             case 401://未登录则返回登录页面
