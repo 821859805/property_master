@@ -18,9 +18,6 @@
                             <i slot="prefix" class="el-icon-lock"></i>
                         </el-input>
                     </el-form-item>
-                    <el-form-item style="margin: 0px;">
-                        <el-checkbox v-model="loginForm.remenberPwd">记住密码</el-checkbox>
-                    </el-form-item>
                     <el-form-item style="margin: 0;">
                         <el-button style="width: 100%;" type="primary" @click="login">立即登录</el-button>
                     </el-form-item>
@@ -35,7 +32,7 @@
             </div>
         </div>
 
-        <el-dialog title="注册"  :visible.sync="registerDialogVisible" width="400px">
+        <el-dialog title="注册" :visible.sync="registerDialogVisible" width="400px">
             <el-form ref="registerFormRef" :model="registerForm" :rules="registerFormRules">
                 <el-form-item prop="username" label="账号" label-width="120px">
                     <el-input type="text" v-model="registerForm.username" autocomplete="off"></el-input>
@@ -43,7 +40,7 @@
                 <el-form-item prop="mobile" label="手机号" label-width="120px">
                     <el-input type="text" v-model="registerForm.mobile" autocomplete="off"></el-input>
                 </el-form-item>
-                <el-form-item prop="password"  label="密码" label-width="120px">
+                <el-form-item prop="password" label="密码" label-width="120px">
                     <el-input v-model="registerForm.password" type="password" autocomplete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="checkpwd" label="重复密码" label-width="120px">
@@ -59,7 +56,7 @@
 </template>
 
 <script>
-import { loginApi } from '@/request/api';
+import { loginApi, registerApi } from '@/request/api';
 import router from '@/router';
 
 export default {
@@ -79,17 +76,14 @@ export default {
             loginForm: {
                 username: '',
                 password: '',
-                remenberPwd: ''
             },
             //对表单输入的值进行验证，不准为空等
             loginFormRules: {
                 username: [
                     { required: true, message: '用户名不能为空！', trigger: 'blur' },
-                    { min: 6, max: 12, message: '用户名长度在 6 到 12 个字符', trigger: 'blur' }
                 ],
                 password: [
                     { required: true, message: '密码不能为空！', trigger: 'blur' },
-                    { min: 6, max: 12, message: '密码长度在 6 到 12 个字符', trigger: 'blur' }
                 ],
             },
             //注册表单信息
@@ -104,11 +98,9 @@ export default {
             registerFormRules: {
                 username: [
                     { required: true, message: '用户名不能为空！', trigger: 'blur' },
-                    { min: 6, max: 12, message: '用户名长度在 6 到 12 个字符', trigger: 'blur' }
                 ],
                 password: [
                     { required: true, message: '密码不能为空！', trigger: 'blur' },
-                    { min: 6, max: 12, message: '密码长度在 6 到 12 个字符', trigger: 'blur' }
                 ],
                 mobile: [
                     { required: true, message: '手机号不能为空！', trigger: 'blur' },
@@ -119,38 +111,62 @@ export default {
         }
     },
     methods: {
-        successMsg(msg){
+        successMsg(msg) {
             this.$message.success(msg);
         },
-        failMsg(msg){
+        failMsg(msg) {
             this.$message.error(msg);
         },
         login() {
             // 登录预验证
-            // this.$refs.loginFormRef.validate(async valid => {//异步请求方法
-            //     if (!valid) return;//预验证验证失败
-            //     console.log(this.loginForm);
-            //     loginApi(this.loginForm).then(res=>{
-            //         console.log(res);
-            //         //登录成功把token放到sessionStorage中
-            //         window.sessionStorage.setItem('token',res.token);
-            //         router.push('/ownerHome');
-            //     }).catch(err=>{
-            //         console.log(err);
-            //     });
-                
-            // });
+            this.$refs.loginFormRef.validate(async valid => {//异步请求方法
+                if (!valid) return;//预验证验证失败
+                console.log(this.loginForm);
+                await loginApi(this.loginForm).then(res => {
+                    switch (res.code) {
+                        case 20000:
+                            //登录成功把token放到sessionStorage中
 
-            router.push('/adminHome');
+                            window.sessionStorage.setItem('token', "Bearer " + res.token);
+                            res.account.type === '管理员' ? router.push('/adminHome') : router.push('/ownerHome');
+                            break;
+                        case 11404: this.failMsg("用户名不存在！"); break;
+                        case 12404: this.failMsg("密码错误！"); break;
+                        case 13404:
+                            this.$alert('你的账号已被管理员封禁，请联系管理员解封', '警告', {
+                                confirmButtonText: '确定'
+                            });
+                            break;
+                    }
+                }).catch(err => {
+
+                    failMsg("服务器繁忙，请稍后再试");
+                });
+
+            });
+
 
         },
         register() {
             // 注册预验证
-            this.$refs.registerFormRef.validate(async valid =>{
-                if(!valid) return;
-                const {data: res} = await this.$http.post('register',this.registerForm);
-                console.log(res);
-                
+            this.$refs.registerFormRef.validate(async valid => {
+                if (!valid) return;
+                await registerApi(this.registerForm).then(res => {
+                    switch (res.code) {
+                        case 20000:
+                            this.successMsg("恭喜你，注册成功！");
+                            this.registerDialogVisible = false;
+                            break;
+                        case 13404:
+                            this.failMsg("注册失败，因为用户名已存在！");
+                            break;
+                    }
+                }).catch(err => {
+                    console.log(err);
+                    this.failMsg("服务器繁忙，注册失败！");
+                })
+
+
             });
         }
     }

@@ -6,7 +6,7 @@
                 <span>社区物业后台管理系统-管理员</span>
             </div>
             <div>
-                退出
+                <a href="#" style="color: aliceblue;text-decoration: none;" @click="logout">退出</a>
             </div>
         </el-header>
         <el-container>
@@ -68,7 +68,18 @@ import router from '@/router';
 
 
 export default {
-    components: { router }
+    components: { router },
+    data() {
+        return {
+            
+        }
+    },
+    methods: {
+        logout() {
+            window.sessionStorage.clear();
+            this.$router.push("/login");
+        }
+    }
 }
 </script>
 

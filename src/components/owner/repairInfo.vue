@@ -3,6 +3,7 @@
         <el-form :inline="true" :model="searchRepairForm">
             <el-form-item label="报修类型">
                 <el-select v-model="searchRepairForm.type" placeholder="请选择报修类型">
+                    <el-option label="不限类型" value="0"></el-option>
                     <el-option label="家具类" value="1"></el-option>
                     <el-option label="门窗类" value="2"></el-option>
                     <el-option label="电路类" value="3"></el-option>
@@ -13,6 +14,7 @@
             </el-form-item>
             <el-form-item label="处理状态">
                 <el-select v-model="searchRepairForm.status" placeholder="请选择报修状态">
+                    <el-option label="不限状态" value="0"></el-option>
                     <el-option label="处理中" value="1"></el-option>
                     <el-option label="已完成" value="2"></el-option>
                 </el-select>
@@ -30,22 +32,27 @@
             <el-table ref="multipleTable" :data="repairData" tooltip-effect="dark" style="width: 100%"
                 @selection-change="handleSelectionChange">
                 <el-table-column type="selection" width="55" align="center"></el-table-column>
+                <el-table-column prop="ownerName" label="报修人" align="center"></el-table-column>
                 <el-table-column label="报修类型" width="120" align="center">
                     <template slot-scope="scope">
                         {{ repairType[scope.row.type] }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="content" label="报修内容" width="120" align="center"></el-table-column>
-                <el-table-column prop="ownerName" label="报修人" align="center"></el-table-column>
+                <el-table-column label="报修图片" align="center">
+                    <template slot-scope="scope">
+                        <img v-if="scope.row.imageUrl" width="140px" height="140px" :src="scope.row.imageUrl">
+                    </template>
+                </el-table-column>
                 <el-table-column prop="submitTime" label="报修时间" align="center"></el-table-column>
                 <el-table-column prop="completeTime" label="处理时间" align="center"></el-table-column>
                 <el-table-column label="处理状态" align="center">
                     <template slot-scope="scope">
-                        <el-tag :type="scope.row.status === 1 ? 'warning' : 'success'">{{ scope.row.status === 1 ? '处理中' :
-                            '已完成' }}</el-tag>
+                        <el-tag :type="scope.row.status === 1 ? 'warning' : 'success'">{{ repairStatus[scope.row.status]
+                        }}</el-tag>
                     </template>
+
                 </el-table-column>
-                <el-table-column prop="adminName" label="处理人" align="center"></el-table-column>
                 <el-table-column label="操作" show-overflow-tooltip align="center">
                     <template slot-scope="scope">
                         <el-button :type="scope.row.status === 1 ? 'warning' : 'danger'" @click="delRepair(scope.row)">{{
@@ -53,9 +60,9 @@
                     </template>
                 </el-table-column>
             </el-table>
-
             <el-pagination @current-change="handleCurrentChange" :hide-on-single-page="value"
-                :current-page.sync="currentPage" :page-size="pageSize" layout="total, prev, pager, next" :total="totalPage">
+                :current-page.sync="pageForm.currentPage" :page-size="pageForm.pageSize" layout="total, prev, pager, next"
+                :total="totalPage">
             </el-pagination>
         </div>
 
@@ -73,7 +80,14 @@
                     </el-select>
                 </el-form-item>
                 <el-form-item prop="content" label="报修内容"><el-input type="textarea"
-                        v-model="addRepairForm.content"></el-input></el-form-item>
+                        v-model="addRepairForm.content"></el-input>
+                </el-form-item>
+                <el-form-item label="报修图片">
+                    <el-upload list-type="picture-card" action :http-request="uploadPicture" :show-file-list="false">
+                        <img v-if="addRepairForm.imageUrl" :src="addRepairForm.imageUrl" class="avatar">
+                        <i v-if="!addRepairForm.imageUrl" class="el-icon-plus"></i>
+                    </el-upload>
+                </el-form-item>
             </el-form>
             <span slot="footer" class="dialog-footer">
                 <el-button @click="addRepairVisible = false">取 消</el-button>
@@ -86,8 +100,12 @@
 </template>
 
 <script>
+import { uploadOwnerPictureApi, insertRepairApi, selectRepairApi, updateRepairApi, deleteRepairApi, selectRepairByConditionsApi, delRepairByIdsApi } from '@/request/api'
 import { toastSuccess, toastFail } from '@/utils/notice'
 export default {
+    mounted() {
+        this.queryRepair();
+    },
     data() {
         return {
             searchRepairForm: {
@@ -100,6 +118,7 @@ export default {
                 content: '123',
                 ownerName: 'fwe',
                 submitTime: '2023-4-1 12:34:56',
+                imageUrl: "123",
                 completeTime: '2023-4-2 12:34:56',
                 status: 1,
                 adminName: 'admin'
@@ -107,6 +126,7 @@ export default {
                 id: 2,
                 type: 3,
                 content: '1234',
+                imageUrl: "123",
                 ownerName: 'fwe1',
                 submitTime: '2023-12-1 12:34:56',
                 completeTime: '2023-4-2 12:34:56',
@@ -121,36 +141,77 @@ export default {
                 5: '土建类',
                 6: '其它'
             },
+            repairStatus: {
+                0: '不限状态',
+                1: '处理中',
+                2: '已完成',
+            },
             multipleSelection: [],
             addRepairVisible: false,
             addRepairForm: {
                 type: '',
-                content: ''
+                content: '',
+                imageUrl: '',
+                status: 1
             },
             addRepairFormRules: {
                 type: [{ required: true, message: '报修类型不能不选！', trigger: 'change' }],
                 content: [{ required: true, message: '你具体要报修什么？', trigger: 'blur' }]
             },
-            currentPage: 1,
-            pageSize: 10,
-            totalPage: 100
+            totalPage: 100,
+            pageForm: {      //当前页面信息
+                currentPage: 1,
+                pageSize: 7,
+                data: ''     //要传给后端的数据
+            },
         }
     },
     methods: {
-        searchRepair() {
-            console.log(this.searchRepairForm);
+        uploadPicture(param) {
+            const formData = new FormData();
+            formData.append("file", param.file);
+            uploadOwnerPictureApi(formData).then(resp => {
+                this.addRepairForm.imageUrl = "http://localhost:8086/api/images/upload/" + resp
+            }).catch(err => {
+
+            })
         },
+        queryRepair() {//分页查询所有的报修并展示
+            selectRepairApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.repairData = [];//清空当前列表
+                res.data.list.forEach(repair => {
+                    let tabelData = repair;
+                    tabelData['ownerName'] = repair.owner.name;
+                    this.repairData.push(tabelData);
+                })
+            });
+        },
+        searchRepair() {//搜索框搜索
+            this.pageForm.data = this.searchRepairForm
+            selectRepairByConditionsApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.repairData = [];//清空当前列表
+                res.data.list.forEach(repair => {
+                    let tabelData = repair;
+                    tabelData['ownerName'] = repair.owner.name;
+                    this.repairData.push(tabelData);
+                })
+            })
+        },
+
         delRepair(row) {
             this.$confirm('你确定要删?', '提示', {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
+                deleteRepairApi(row).then(res => {
+                    this.queryRepair();
+                    toastSuccess(this, "删除成功!");
+                }).catch(err => {
+                    toastFail(this, "服务器繁忙，请稍后重试！");
+                })
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -175,11 +236,18 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
+                delRepairByIdsApi(ids).then(res => {
+                    this.queryRepair();
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                }).catch((err) => {
+                    this.$message({
+                        type: 'error',
+                        message: '删除失败，服务器繁忙！'
+                    });
                 });
-                console.log(ids);
             }).catch((err) => {
                 this.$message({
                     type: 'info',
@@ -198,11 +266,13 @@ export default {
                     cancelButtonText: '取消',
                     type: 'warning'
                 }).then(() => {
-                    this.$message({
-                        type: 'success',
-                        message: '报修信息已经提交了，耐心等!'
-                    });
-                    console.log(this.addRepairForm);
+                    insertRepairApi(this.addRepairForm).then(res => {
+                        toastSuccess(this, "报修信息已经提交了，耐心等!");
+                        this.addRepairVisible = false;
+                        this.queryRepair();
+                    }).catch(err => {
+                        toastFail(this, "服务器繁忙，请稍后重试！");
+                    })
                 }).catch((err) => {
                     this.$message({
                         type: 'info',
@@ -219,3 +289,32 @@ export default {
     }
 }
 </script>
+
+<style lang="less" scoped>
+.avatar-uploader .el-upload {
+    border: 1px dashed #d9d9d9;
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.avatar-uploader .el-upload:hover {
+    border-color: #409EFF;
+}
+
+.avatar-uploader-icon {
+    font-size: 28px;
+    color: #8c939d;
+    width: 140px;
+    height: 140px;
+    line-height: 140px;
+    text-align: center;
+}
+
+.avatar {
+    width: 140px;
+    height: 140px;
+    display: block;
+}
+</style>

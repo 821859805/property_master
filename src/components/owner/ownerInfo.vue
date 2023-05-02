@@ -16,7 +16,9 @@
                 <div style="display: flex">
                     <el-form-item label="出生日期">
                         <el-date-picker style="width: 190px;" v-model="personalInfoForm.birthday" type="date"
-                            placeholder="选择日期"></el-date-picker>
+                            value-format="yyyy-MM-dd">
+                            <!-- 一定要加上上面这句，否则送到后台时间会差两天，因为element用的是别的时区 -->
+                        </el-date-picker>
                     </el-form-item>
                     <el-form-item label="身份证号码">
                         <el-input v-model="personalInfoForm.idNo"></el-input>
@@ -31,13 +33,12 @@
                     </el-form-item>
                 </div>
                 <el-form-item label="照片">
-                    <el-upload action="#" list-type="picture-card" :on-preview="handlePictureCardPreview"
+                    <el-upload list-type="picture-card" action :http-request="uploadPicture" :show-file-list="false"
                         :on-remove="handleRemove">
-                        <i class="el-icon-plus"></i>
+                        <img v-if="personalInfoForm.imageUrl" :src="personalInfoForm.imageUrl" class="avatar">
+                        <i v-if="!personalInfoForm.imageUrl" class="el-icon-plus"></i>
                     </el-upload>
-                    <el-dialog :visible.sync="dialogVisible">
-                        <img width="100%" :src="dialogImageUrl" alt="">
-                    </el-dialog>
+
                 </el-form-item>
                 <el-button type="primary" @click="submitPersonalInfo">提交修改</el-button>
             </el-form>
@@ -45,58 +46,64 @@
         <el-tab-pane label="房产信息">
             <el-form ref="buildingForm" :model="buildingForm" label-width="150px">
                 <div style="display: flex">
-                    <el-form-item prop="no" label="房产证编号">
-                        <el-input v-model="buildingForm.estateNo"></el-input>
+                    <el-form-item v-if="buildingForm.type === '全权'" prop="no" label="房产证编号">
+                        <el-input v-model="buildingForm.no"></el-input>
                     </el-form-item>
-                    <el-form-item label="发证日期">
-                        <el-date-picker style="width: 190px;" v-model="buildingForm.ctime" type="date"
-                            placeholder="选择日期"></el-date-picker>
+                    <el-form-item v-if="buildingForm.type === '全权'" label="发证日期">
+                        <el-date-picker style="width: 190px;" v-model="buildingForm.ctime" type="date" placeholder="选择日期"
+                            value-format="yyyy-MM-dd">
+                            <!-- 一定要加上上面这句，否则送到后台时间会差两天，因为element用的是别的时区 -->
+                        </el-date-picker>
                     </el-form-item>
                 </div>
 
                 <div style="display: flex">
-                    <el-form-item label="产权情况">
-                        <el-select style="width: 190px;" v-model="buildingForm.power" placeholder="请选择产权情况">
-                            <el-option label="自有" value="自有"></el-option>
-                            <el-option label="租入" value="租入"></el-option>
-                        </el-select>
+                    <el-form-item label="产权情况:">
+                        <span>{{ buildingForm.type }}</span>
                     </el-form-item>
+
+                </div>
+
+                <div style="display: flex">
                     <el-form-item label="所在城区">
-                        <el-input v-model="buildingForm.urban"></el-input>
+                        <el-input v-model="buildingForm.city"></el-input>
                     </el-form-item>
-                </div>
-
-                <div style="display: flex">
                     <el-form-item label="所在街道">
                         <el-input v-model="buildingForm.street"></el-input>
                     </el-form-item>
+
+                </div>
+
+                <div style="display:flex">
                     <el-form-item label="所在社区">
                         <el-input v-model="buildingForm.community"></el-input>
                     </el-form-item>
                 </div>
 
                 <div style="display: flex">
-                    <el-form-item label="所在楼盘">
-                        <el-input v-model="buildingForm.housing"></el-input>
+                    <el-form-item label="所在楼盘:">
+                        <span>{{ buildingForm.housing }}</span>
                     </el-form-item>
-                    <el-form-item label="所在单元">
-                        <el-input v-model="buildingForm.unit"></el-input>
+                    <el-form-item label="所在单元:">
+                        <span>{{ buildingForm.unit }}</span>
                     </el-form-item>
-                </div>
-
-                <div style="display: flex">
-                    <el-form-item label="所在楼层">
-                        <el-input v-model="buildingForm.floor"></el-input>
+                    <el-form-item label="所在房号:">
+                        <span>{{ buildingForm.room }}</span>
                     </el-form-item>
-                    <el-form-item label="所在房号">
-                        <el-input v-model="buildingForm.room"></el-input>
+                    <el-form-item label="总面积（m²）:">
+                        <span>{{ buildingForm.acreage }}</span>
                     </el-form-item>
                 </div>
 
                 <div style="display: flex">
-                    <el-form-item label="总面积">
-                        <el-input v-model="buildingForm.acreage"></el-input>
+                    <el-form-item label="车位号:">
+                        <span>{{ buildingForm.carNo }}</span>
                     </el-form-item>
+
+                </div>
+
+                <div style="display: flex">
+
                     <el-form-item label="上次更新时间">
                         <span>{{ buildingForm.lastupdate }}</span>
                     </el-form-item>
@@ -115,14 +122,16 @@
                 <el-table-column prop="age" label="年龄" align="center"></el-table-column>
                 <el-table-column label="操作" align="center">
                     <template slot-scope="scope">
-                        <el-button type="primary" @click="updateMemberForm.id = scope.row.id; updateMemberForm = scope.row; updateMemberVisible = true">修改</el-button>
+                        <el-button type="primary"
+                            @click="updateMemberForm.id = scope.row.id; updateMemberForm = Object.assign({}, scope.row); updateMemberVisible = true">修改</el-button>
                         <el-button type="danger" @click=" deleteMember(scope.row) ">删除</el-button>
                     </template>
                 </el-table-column>
             </el-table>
 
             <el-dialog title="新增家庭成员" :visible.sync=" addMemberVisible " width="30%">
-                <el-form ref="addMemberForm" :model=" addMemberForm " :rules=" addMemberFormRules " label-width="100px" style="width:290px">
+                <el-form ref="addMemberForm" :model=" addMemberForm " :rules=" addMemberFormRules " label-width="100px"
+                    style="width:290px">
                     <el-form-item prop="name" label="姓名"><el-input v-model=" addMemberForm.name "></el-input></el-form-item>
                     <el-form-item label="性别">
                         <el-select style="width: 190px;" v-model=" addMemberForm.sex " placeholder="请选择你的性别">
@@ -143,7 +152,8 @@
             </el-dialog>
 
             <el-dialog title="修改家庭成员信息" :visible.sync=" updateMemberVisible " width="30%">
-                <el-form ref="updateMemberForm" :model=" updateMemberForm " :rules=" updateMemberFormRules" label-width="100px" style="width:290px">
+                <el-form ref="updateMemberForm" :model=" updateMemberForm " :rules=" updateMemberFormRules "
+                    label-width="100px" style="width:290px">
                     <el-form-item prop="name" label="姓名"><el-input
                             v-model=" updateMemberForm.name "></el-input></el-form-item>
                     <el-form-item label="性别">
@@ -169,7 +179,15 @@
 </template>
 
 <script>
+import { selectParkingApi,selectBuildingApi, uploadOwnerPictureApi, selectOwnerApi, updateOwnerApi, selectHouseApi, updateHouseApi, insertFamilyApi, selectFamilyApi, updateFamilyApi, deleteFamilyApi } from '@/request/api';
+import { toastSuccess, toastFail } from '@/utils/notice';
+
 export default {
+    mounted() {
+        this.queryPersonalInfo();
+        this.queryBuildingInfo();
+        this.queryMemberInfo();
+    },
     data() {
         return {
             activeIndex: '',
@@ -179,7 +197,8 @@ export default {
                 birthday: '',
                 idNo: '',
                 mobile: '',
-                email: ''
+                email: '',
+                imageUrl: ''
             },
             buildingForm: {
                 id: 1,
@@ -188,36 +207,15 @@ export default {
                 community: '',
                 floor: '',
                 housing: '',
-                power: '',
-                room: '',
-                street: '',
+                type: '自有',
+                room: '33',
+                street: '33',
                 ctime: '',
-                unit: '',
-                urban: '',
+                unit: '11',
+                city: '12',
                 lastupdate: '还没有数据'
             },
-            familyData: [{
-                id: 1,
-                name: '王者',
-                sex: '男',
-                age: 30,
-                relationship: '兄弟',
-                mobile: '123456'
-            }, {
-                id: 2,
-                name: '原神',
-                sex: '男',
-                age: 15,
-                relationship: '父子',
-                mobile: '6123456'
-            }, {
-                id: 3,
-                name: '蛋仔',
-                sex: '女',
-                age: 12,
-                relationship: '父女',
-                mobile: '12331456'
-            }],
+            familyData: [],
             personalInfoFormRules: {
                 name: [{ required: true, message: '姓名不能为空！', trigger: 'blur' }],
                 mobile: [{ required: true, message: '手机号不能为空！', trigger: 'blur' }]
@@ -250,11 +248,45 @@ export default {
                 mobile: [{ required: true, message: '手机号不能不写!', trigger: 'blur' }]
             },
 
-            dialogImageUrl: '',
-            dialogVisible: false
         }
     },
     methods: {
+        queryPersonalInfo() {//查询业主个人信息
+            selectOwnerApi().then(res => {
+                this.personalInfoForm = res.data;
+
+            }).catch(err => {
+                console.log(err);
+            });
+
+        },
+        queryBuildingInfo() {//查询业主住房信息
+            selectHouseApi().then(res => {
+                this.buildingForm = res.data.house
+                selectBuildingApi().then(res => {
+                    this.buildingForm.type = res.data.type;
+                    this.buildingForm.acreage = res.data.acreage;
+                    this.buildingForm.lastupdate = res.data.updateTime;
+                    this.buildingForm.housing = res.data.housing;
+                    this.buildingForm.unit = res.data.unit;
+                    this.buildingForm.room = res.data.room;
+                    selectParkingApi().then(res =>{
+                        console.log(res);
+                        this.buildingForm.carNo=res.data.carNo;
+                    })
+                });
+            }).catch(err => {
+                console.log(err);
+            })
+
+        },
+        queryMemberInfo() {//查询业主家庭成员信息
+            selectFamilyApi().then(res => {
+                this.familyData = res.data.familyList
+            }).catch(err => {
+                console.log(err);
+            })
+        },
         tabClick() {
             switch (this.activeIndex) {
                 case '0':
@@ -268,22 +300,40 @@ export default {
                     break;
             }
         },
-        submitPersonalInfo() {
-            this.$refs.personalInfoForm.validate(valid => {
+        submitPersonalInfo() {//修改业主个人信息
+            //一定要加await和async，否则执行语句顺序会颠倒
+            this.$refs.personalInfoForm.validate(async valid => {
                 if (!valid) return;
-                console.log(this.personalInfoForm);
+                await updateOwnerApi(this.personalInfoForm).then(res => { });
+                await this.queryPersonalInfo();
+                toastSuccess(this, "恭喜你，修改信息成功了！");
+
             })
         },
-        addMember() {
+        addMember() {//新增业主家庭成员
             this.$refs.addMemberForm.validate(valid => {
                 if (!valid) return;
-                console.log(this.addMemberForm)
+                insertFamilyApi(this.addMemberForm).then(res => {
+                    toastSuccess(this, "新增成功！");
+                    this.addMemberVisible = false;
+                    this.queryMemberInfo();
+                }).catch(err => {
+                    console.log(err);
+                    toastFail(this, "服务器忙，新增失败！")
+                })
             })
         },
         updateMember() {
             this.$refs.updateMemberForm.validate(valid => {
                 if (!valid) return;
-                console.log(this.updateMemberForm)
+                updateFamilyApi(this.updateMemberForm).then(res => {
+                    toastSuccess(this, "修改成功！");
+                    this.updateMemberVisible = false;
+                    this.queryMemberInfo();
+                }).catch(err => {
+                    console.log(err);
+                    toastFail(this, "服务器忙，修改失败！")
+                })
             })
         },
         deleteMember(row) {
@@ -292,11 +342,14 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
+                deleteFamilyApi(row).then(res => {
+                    toastSuccess(this, "删除成功！");
+                    this.queryMemberInfo();
+                }).catch(err => {
+                    console.log(err);
+                    toastFail(this, "服务器忙，删除失败！")
+                })
+
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -304,8 +357,13 @@ export default {
                 });
             });
         },
-        submitBuildingInfo() {
+        submitBuildingInfo() {//修改业主住房信息
             console.log(this.buildingForm);
+            updateHouseApi(this.buildingForm).then(res => {
+                toastSuccess(this, "修改成功！")
+            }).catch(err => {
+                toastFail(this, "服务器忙，修改失败！")
+            })
         },
         handleRemove(file, fileList) {
             console.log(file, fileList);
@@ -313,8 +371,46 @@ export default {
         handlePictureCardPreview(file) {
             this.dialogImageUrl = file.url;
             this.dialogVisible = true;
-        }
+        },
+        uploadPicture(param) {
+            const formData = new FormData();
+            formData.append("file", param.file);
+            uploadOwnerPictureApi(formData).then(resp => {
+                this.personalInfoForm.imageUrl = "http://localhost:8086/api/images/upload/" + resp
+            }).catch(err => {
+
+            })
+        },
     }
 
 }
 </script>
+
+<style lang="less" scoped>
+.avatar-uploader .el-upload {
+    border: 1px dashed #d9d9d9;
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.avatar-uploader .el-upload:hover {
+    border-color: #409EFF;
+}
+
+.avatar-uploader-icon {
+    font-size: 28px;
+    color: #8c939d;
+    width: 140px;
+    height: 140px;
+    line-height: 140px;
+    text-align: center;
+}
+
+.avatar {
+    width: 140px;
+    height: 140px;
+    display: block;
+}
+</style>

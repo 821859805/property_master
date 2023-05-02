@@ -3,6 +3,7 @@
         <el-form :inline="true" :model="searchRepairForm">
             <el-form-item label="报修类型">
                 <el-select v-model="searchRepairForm.type" placeholder="请选择报修类型">
+                    <el-option label="不限类型" value="0"></el-option>
                     <el-option label="家具类" value="1"></el-option>
                     <el-option label="门窗类" value="2"></el-option>
                     <el-option label="电路类" value="3"></el-option>
@@ -13,6 +14,7 @@
             </el-form-item>
             <el-form-item label="处理状态">
                 <el-select v-model="searchRepairForm.status" placeholder="请选择报修状态">
+                    <el-option label="不限状态" value="0"></el-option>
                     <el-option label="处理中" value="1"></el-option>
                     <el-option label="已完成" value="2"></el-option>
                 </el-select>
@@ -34,6 +36,11 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="content" label="报修内容" width="120" align="center"></el-table-column>
+                <el-table-column label="报修图片" align="center">
+                    <template slot-scope="scope">
+                        <img v-if="scope.row.imageUrl" width="140px" height="140px" :src="scope.row.imageUrl">
+                    </template>
+                </el-table-column>
                 <el-table-column prop="ownerName" label="报修人" align="center"></el-table-column>
                 <el-table-column prop="submitTime" label="报修时间" align="center"></el-table-column>
                 <el-table-column prop="completeTime" label="处理时间" align="center"></el-table-column>
@@ -54,7 +61,8 @@
             </el-table>
 
             <el-pagination @current-change="handleCurrentChange" :hide-on-single-page="value"
-                :current-page.sync="currentPage" :page-size="pageSize" layout="total, prev, pager, next" :total="totalPage">
+                :current-page.sync="pageForm.currentPage" :page-size="pageForm.pageSize" layout="total, prev, pager, next"
+                :total="totalPage">
             </el-pagination>
         </div>
 
@@ -62,42 +70,19 @@
 </template>
 
 <script>
+import {selectRepairByAdminApi,selectRepairByConditionsByAdminApi,completeRepairByAdminApi,deleteRepairByAdminApi,delRepairByIdsByAdminApi} from '@/request/api'
 import { toastSuccess, toastFail } from '@/utils/notice'
 export default {
+    mounted() {
+        this.queryRepair();
+    },
     data() {
         return {
             searchRepairForm: {
                 type: '',
                 status: ''
             },
-            repairData: [{
-                id: 1,
-                type: 1,
-                content: '123',
-                ownerName: 'fwe',
-                submitTime: '2023-4-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                status: 1,
-                adminName: 'admin'
-            }, {
-                id: 2,
-                type: 3,
-                content: '1234',
-                ownerName: 'fwe1',
-                submitTime: '2023-12-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                status: 2,
-                adminName: 'admin'
-            }, {
-                id: 3,
-                type: 4,
-                content: '12334',
-                ownerName: 'fw4e1',
-                submitTime: '2023-12-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                status: 1,
-                adminName: 'admin'
-            }],
+            repairData: [],
             repairType: {
                 1: '质量类',
                 2: '维修类',
@@ -107,15 +92,40 @@ export default {
                 6: '物业不作为'
             },
             multipleSelection: [],
-            currentPage: 1,
-            pageSize: 10,
             totalPage: 100,
+            pageForm: {      //当前页面信息
+                currentPage: 1,
+                pageSize: 7,
+                data: ''     //要传给后端的数据
+            }
 
         }
     },
     methods: {
+        queryRepair() {//分页查询所有的投诉并展示
+            selectRepairByAdminApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.repairData = [];//清空当前列表
+                console.log(res);
+                res.data.list.forEach(repair => {
+                    let tabelData = repair;
+                    tabelData['ownerName'] = repair.owner.name;
+                    this.repairData.push(tabelData);
+                })
+            });
+        },
         searchRepair() {
             console.log(this.searchRepairForm);
+            this.pageForm.data = this.searchRepairForm
+            selectRepairByConditionsByAdminApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.repairData = [];//清空当前列表
+                res.data.list.forEach(repair => {
+                    let tabelData = repair;
+                    tabelData['ownerName'] = repair.owner.name;
+                    this.repairData.push(tabelData);
+                })
+            })
         },
         delRepair(row) {
             this.$confirm('你确定要删?', '提示', {
@@ -123,11 +133,12 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
+                deleteRepairByAdminApi(row).then(res => {
+                    this.queryRepair();
+                    toastSuccess(this, "删除成功!");
+                }).catch(err => {
+                    toastFail(this, "服务器繁忙，请稍后重试！");
+                })
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -140,12 +151,15 @@ export default {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
                 type: 'warning'
-            }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '处理完成!'
-                });
+            }).then(() => { 
+                completeRepairByAdminApi(row).then(res => {
+                    this.queryRepair();
+                    this.$message({
+                        type: 'success',
+                        message: '处理完成!'
+                    });
+                })
+
             })
         },
         delRepairs() {
@@ -160,11 +174,18 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
+                delRepairByIdsByAdminApi(ids).then(res => {
+                    this.queryRepair();
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                }).catch((err) => {
+                    this.$message({
+                        type: 'error',
+                        message: '删除失败，服务器繁忙！'
+                    });
                 });
-                console.log(ids);
             }).catch((err) => {
                 this.$message({
                     type: 'info',
@@ -180,7 +201,7 @@ export default {
             console.log(this.pageSize);
         },
         selectable: function (row, index) {
-            if (row.status === 1)
+            if (row.status === 2)
                 return true;
         }
 

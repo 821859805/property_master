@@ -3,6 +3,7 @@
         <el-form :inline="true" :model="searchRepairForm">
             <el-form-item label="费用类型">
                 <el-select v-model="searchFeeForm.type" placeholder="请选择费用类型">
+                    <el-option label="不限类型" value="0"></el-option>
                     <el-option label="物业费" value="1"></el-option>
                     <el-option label="水费" value="2"></el-option>
                     <el-option label="电费" value="3"></el-option>
@@ -12,6 +13,7 @@
             </el-form-item>
             <el-form-item label="缴费状态">
                 <el-select v-model="searchFeeForm.status" placeholder="请选择缴费状态">
+                    <el-option label="不限类型" value="0"></el-option>
                     <el-option label="未缴费" value="1"></el-option>
                     <el-option label="已缴费" value="2"></el-option>
                 </el-select>
@@ -50,22 +52,21 @@
             </el-table>
 
             <el-pagination @current-change="handleCurrentChange" :hide-on-single-page="value"
-                :current-page.sync="currentPage" :page-size="pageSize" layout="total, prev, pager, next" :total="totalPage">
+                :current-page.sync="pageForm.currentPage" :page-size="pageForm.pageSize" layout="total, prev, pager, next"
+                :total="totalPage">
             </el-pagination>
         </div>
 
 
         <el-dialog title="新增缴费" :visible.sync="addFeeVisible" width="30%">
-            <el-form ref="addFeeForm" :model="addFeeForm" :rules="addFeeFormRules" label-width="100px"
-                style="width:290px">
-                <el-form-item prop="id" label="业主">
-                    <el-select v-model="addFeeForm.id" placeholder="请选择业主">
-                        <el-option v-for="item in ownerOptions" :key="item.value" :label="item.label" :value="item.value"></el-option>
-                    </el-select>
+            <el-form ref="addFeeForm" :model="addFeeForm" :rules="addFeeFormRules" label-width="100px" style="width:290px">
+                <el-form-item prop="ownerId" label="业主id">
+                    <el-input v-model="addFeeForm.ownerId" placeholder="请输入业主的id"></el-input>
                 </el-form-item>
                 <el-form-item prop="type" label="费用类型" label-width="120px">
                     <el-select v-model="addFeeForm.type" placeholder="请选择费用类型">
-                        <el-option v-for="item in feeOptions" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                        <el-option v-for="item in feeOptions" :key="item.value" :label="item.label"
+                            :value="item.value"></el-option>
                     </el-select>
                 </el-form-item>
                 <el-form-item prop="price" label="价格（元）" label-width="120px">
@@ -82,31 +83,19 @@
 </template>
 
 <script>
+import { insertFeeApi, selectFeeByAdminApi, selectFeeByConditionsByAdminApi, deleteFeeByAdminApi, delFeeByIdsByAdminApi } from '@/request/api'
 import { toastSuccess, toastFail } from '@/utils/notice'
 export default {
+    mounted() {
+        this.queryFee();
+    },
     data() {
         return {
             searchFeeForm: {
                 type: '',
                 status: ''
             },
-            feeData: [{
-                id: 1,
-                type: 1,
-                ownerName: 'fwe',
-                submitTime: '2023-4-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                price: 400,
-                status: 1,
-            }, {
-                id: 2,
-                type: 3,
-                ownerName: 'fwe1',
-                submitTime: '2023-12-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                price: 800,
-                status: 2,
-            }],
+            feeData: [],
             feeType: {
                 1: '物业费',
                 2: '水费',
@@ -114,60 +103,70 @@ export default {
                 4: '房租',
                 5: '停车费'
             },
-            addFeeVisible:false,
-            addFeeForm:{},
-            addFeeFormRules:{
-                id:[{ required: true, message: '不能不选！', trigger: 'change' }],
-                type:[{ required: true, message: '不能不选！', trigger: 'change' }],
-                price:[{ required: true, message: '不能不写！', trigger: 'blur' }]
+            addFeeVisible: false,
+            addFeeForm: {
+                ownerId: '',
+                type: '',
+                price: '',
+                status: 1
             },
-            ownerOptions:[{
-                value:1,
-                label:'业主一'
-            },{
-                value:2,
-                label:'业主二'
-            },{
-                value:3,
-                label:'业主三'
-            },{
-                value:4,
-                label:'业主四'
-            },{
-                value:5,
-                label:'业主五'
+            addFeeFormRules: {
+                ownerId: [{ required: true, message: '不能不写！', trigger: 'blur' }],
+                type: [{ required: true, message: '不能不选！', trigger: 'change' }],
+                price: [{ required: true, message: '不能不写！', trigger: 'blur' }]
+            },
+            feeOptions: [{
+                value: 1,
+                label: '物业费'
+            }, {
+                value: 2,
+                label: '水费'
+            }, {
+                value: 3,
+                label: '电费'
+            }, {
+                value: 4,
+                label: '房租'
+            }, {
+                value: 5,
+                label: '停车费'
             }],
-            feeOptions:[{
-                value:1,
-                label:'物业费'
-            },{
-                value:2,
-                label:'水费'
-            },{
-                value:3,
-                label:'电费'
-            },{
-                value:4,
-                label:'房租'
-            },{
-                value:5,
-                label:'停车费'
-            }],
-            multipleSelection:[],
-            currentPage: 1,
-            pageSize: 10,
-            totalPage: 100
+            multipleSelection: [],
+            totalPage: 100,
+            pageForm: {      //当前页面信息
+                currentPage: 1,
+                pageSize: 7,
+                data: ''     //要传给后端的数据
+            }
         }
     },
     methods: {
+        queryFee() {
+            selectFeeByAdminApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.feeData = [];//清空当前列表
+                console.log(res);
+                res.data.list.forEach(fee => {
+                    let tabelData = fee;
+                    tabelData['ownerName'] = fee.owner.name;
+                    this.feeData.push(tabelData);
+                })
+            });
+        },
         handleSelectionChange(val) {
             this.multipleSelection = val;
         },
         searchFee() {
-            console.log(this.searchFeeForm);
-        },
-        payFee(row) {
-            console.log(row)
+            this.pageForm.data = this.searchFeeForm
+            selectFeeByConditionsByAdminApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.feeData = [];//清空当前列表
+                res.data.list.forEach(fee => {
+                    let tabelData = fee;
+                    tabelData['ownerName'] = fee.owner.name;
+                    this.feeData.push(tabelData);
+                })
+            })
         },
         delFee(row) {
             this.$confirm('你确定要删?', '提示', {
@@ -175,11 +174,14 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
+                deleteFeeByAdminApi(row).then(res => {
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                    this.queryFee();
+                })
+
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -199,11 +201,13 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
-                console.log(ids);
+                delFeeByIdsByAdminApi(ids).then(res => {
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                    this.queryFee();
+                })
             }).catch((err) => {
                 this.$message({
                     type: 'info',
@@ -223,11 +227,18 @@ export default {
                     cancelButtonText: '取消',
                     type: 'warning'
                 }).then(() => {
-                    this.$message({
-                        type: 'success',
-                        message: '已添加成功！'
-                    });
-                    console.log(this.addFeeForm);
+                    insertFeeApi(this.addFeeForm).then(res => {
+                        switch (res.code) {
+                            case 21404:
+                                toastFail(this, "您输入的业主id不存在，请重新输入！")
+                                break;
+                            case 20000:
+                                toastSuccess(this, "已成功添加催收信息！");
+                                this.queryFee();
+                                this.addFeeVisible = false;
+                                break;
+                        }
+                    })
                 }).catch(() => {
                     this.$message({
                         type: 'info',

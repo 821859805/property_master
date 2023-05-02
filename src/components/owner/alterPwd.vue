@@ -1,6 +1,7 @@
 
 <template>
-    <el-form :model="alterPwdForm" status-icon :rules="rules" ref="alterPwdRuleForm" label-width="100px" style="width: 300px;" class="demo-ruleForm">
+    <el-form :model="alterPwdForm" status-icon :rules="rules" ref="alterPwdRuleForm" label-width="100px"
+        style="width: 300px;" class="demo-ruleForm">
         <el-form-item label="旧密码" prop="oldPwd">
             <el-input type="password" v-model="alterPwdForm.oldPwd" autocomplete="off"></el-input>
         </el-form-item>
@@ -18,8 +19,8 @@
 </template>
 
 <script>
-import {alterPassword} from '@/request/api'
-import {toastSuccess,toastFail} from '@/utils/notice'
+import { alterPasswordApi } from '@/request/api'
+import { toastSuccess, toastFail } from '@/utils/notice'
 export default {
     data() {
         var validateOldPwd = (rule, value, callback) => {
@@ -55,7 +56,7 @@ export default {
             },
             rules: {
                 oldPwd: [
-                    {validator: validateOldPwd, trigger: 'blur'}
+                    { validator: validateOldPwd, trigger: 'blur' }
                 ],
                 password: [
                     { validator: validatePass, trigger: 'blur' }
@@ -69,21 +70,24 @@ export default {
     methods: {
         submitForm() {
             //每一个validator里面都要有callback()，否则validate里面方法不执行
-            this.$refs.alterPwdRuleForm.validate(valid =>{
-                if(!valid) return;
+            this.$refs.alterPwdRuleForm.validate(valid => {
+                if (!valid) return;
                 console.log(this.alterPwdForm);
-                alterPassword(this.alterPwdForm).then(res=>{
-                    console.log(res);
-                    toastSuccess(this,"恭喜你！修改密码成功了！")
-                }).catch(err=>{
+                alterPasswordApi(this.alterPwdForm).then(res => {
+                    switch (res.code) {
+                        case 20000:
+                            toastSuccess(this, "恭喜你！修改密码成功了！");
+                            break;
+                        case 12404:
+                            toastFail(this, "旧密码错误！！！");
+                            break;
+                    }
+
+                }).catch(err => {
                     console.log(err);
-                    /*
-                    *
-                    *
-                    * */
                 });
             });
-            
+
         },
         resetForm(formName) {
             this.$refs[formName].resetFields();

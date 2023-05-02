@@ -3,6 +3,7 @@
         <el-form :inline="true" :model="searchRepairForm">
             <el-form-item label="费用类型">
                 <el-select v-model="searchFeeForm.type" placeholder="请选择费用类型">
+                    <el-option label="不限类型" value="0"></el-option>
                     <el-option label="物业费" value="1"></el-option>
                     <el-option label="水费" value="2"></el-option>
                     <el-option label="电费" value="3"></el-option>
@@ -12,6 +13,7 @@
             </el-form-item>
             <el-form-item label="缴费状态">
                 <el-select v-model="searchFeeForm.status" placeholder="请选择缴费状态">
+                    <el-option label="不限类型" value="0"></el-option>
                     <el-option label="未缴费" value="1"></el-option>
                     <el-option label="已缴费" value="2"></el-option>
                 </el-select>
@@ -28,7 +30,7 @@
                     <template slot-scope="scope">
                         {{ feeType[scope.row.type] }}
                     </template>
-                </el-table-column>  
+                </el-table-column>
                 <el-table-column prop="price" label="金额（元）" align="center"></el-table-column>
                 <el-table-column prop="submitTime" label="催缴时间" align="center"></el-table-column>
                 <el-table-column prop="completeTime" label="缴费时间" align="center"></el-table-column>
@@ -40,8 +42,8 @@
                 </el-table-column>
                 <el-table-column label="操作" show-overflow-tooltip align="center">
                     <template slot-scope="scope">
-                        <el-button type="success" @click="payFee(scope.row)" v-if="scope.row.status===1">缴费</el-button>
-                        <el-button type="danger" @click="delFee(scope.row)" v-if="scope.row.status===2">删除记录</el-button>
+                        <el-button type="success" @click="payFee(scope.row)" v-if="scope.row.status === 1">缴费</el-button>
+                        <el-button type="danger" @click="delFee(scope.row)" v-if="scope.row.status === 2">删除记录</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -57,31 +59,19 @@
 </template>
 
 <script>
+import { selectFeeApi, selectFeeByConditionsApi, deleteFeeApi,completeFeeApi } from '@/request/api'
 import { toastSuccess, toastFail } from '@/utils/notice'
 export default {
+    mounted() {
+        this.queryFee();
+    },
     data() {
         return {
             searchFeeForm: {
                 type: '',
                 status: ''
             },
-            feeData: [{
-                id: 1,
-                type: 1,
-                ownerName: 'fwe',
-                submitTime: '2023-4-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                price:400,
-                status: 1,
-            }, {
-                id: 2,
-                type: 3,
-                ownerName: 'fwe1',
-                submitTime: '2023-12-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                price:800,
-                status: 2,
-            }],
+            feeData: [],
             feeType: {
                 1: '物业费',
                 2: '水费',
@@ -89,17 +79,45 @@ export default {
                 4: '房租',
                 5: '停车费'
             },
-            currentPage: 1,
-            pageSize: 10,
-            totalPage: 100
+            totalPage: 100,
+            pageForm: {      //当前页面信息
+                currentPage: 1,
+                pageSize: 7,
+                data: ''     //要传给后端的数据
+            }
         }
     },
     methods: {
-        searchFee() {
-            console.log(this.searchFeeForm);
+        queryFee() {
+            selectFeeApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.feeData = [];//清空当前列表
+                console.log(res);
+                res.data.list.forEach(fee => {
+                    let tabelData = fee;
+                    tabelData['ownerName'] = fee.owner.name;
+                    this.feeData.push(tabelData);
+                })
+            });
         },
-        payFee(row){
+        searchFee() {
+            this.pageForm.data = this.searchFeeForm
+            selectFeeByConditionsApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.feeData = [];//清空当前列表
+                res.data.list.forEach(fee => {
+                    let tabelData = fee;
+                    tabelData['ownerName'] = fee.owner.name;
+                    this.feeData.push(tabelData);
+                })
+            })
+        },
+        payFee(row) {
             console.log(row)
+            completeFeeApi(row).then(res=>{
+                toastSuccess(this,"成功缴费！");
+                this.queryFee();
+            })
         },
         delFee(row) {
             this.$confirm('你确定要删?', '提示', {
@@ -107,11 +125,14 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
+                deleteFeeApi(row).then(res => {
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                    this.queryFee();
+                })
+
             }).catch(() => {
                 this.$message({
                     type: 'info',

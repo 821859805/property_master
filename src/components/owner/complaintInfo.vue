@@ -3,6 +3,7 @@
         <el-form :inline="true" :model="searchComplaintForm">
             <el-form-item label="投诉类型">
                 <el-select v-model="searchComplaintForm.type" placeholder="请选择投诉类型">
+                    <el-option label="不限类型" value="0"></el-option>
                     <el-option label="质量类" value="1"></el-option>
                     <el-option label="维修类" value="2"></el-option>
                     <el-option label="扰民类" value="3"></el-option>
@@ -13,6 +14,7 @@
             </el-form-item>
             <el-form-item label="处理状态">
                 <el-select v-model="searchComplaintForm.status" placeholder="请选择投诉状态">
+                    <el-option label="不限状态" value="0"></el-option>
                     <el-option label="处理中" value="1"></el-option>
                     <el-option label="已完成" value="2"></el-option>
                 </el-select>
@@ -41,11 +43,10 @@
                 <el-table-column prop="completeTime" label="处理时间" align="center"></el-table-column>
                 <el-table-column label="处理状态" align="center">
                     <template slot-scope="scope">
-                        <el-tag :type="scope.row.status === 1 ? 'warning' : 'success'">{{ scope.row.status === 1 ? '处理中' :
-                            '已完成' }}</el-tag>
+                        <el-tag :type="scope.row.status === 1 ? 'warning' : 'success'">{{ complaintStatus[scope.row.status]
+                        }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="adminName" label="处理人"align="center"></el-table-column>
                 <el-table-column label="操作" show-overflow-tooltip align="center">
                     <template slot-scope="scope">
                         <el-button :type="scope.row.status === 1 ? 'warning' : 'danger'" @click="delComplaint(scope.row)">{{
@@ -55,7 +56,8 @@
             </el-table>
 
             <el-pagination @current-change="handleCurrentChange" :hide-on-single-page="value"
-                :current-page.sync="currentPage" :page-size="pageSize" layout="total, prev, pager, next" :total="totalPage">
+                :current-page.sync="pageForm.currentPage" :page-size="pageForm.pageSize" layout="total, prev, pager, next"
+                :total="totalPage">
             </el-pagination>
         </div>
 
@@ -64,6 +66,7 @@
                 style="width:290px">
                 <el-form-item label="投诉类型" prop="type">
                     <el-select style="width: 190px;" v-model="addComplaintForm.type" placeholder="请选择投诉类型">
+
                         <el-option label="质量类" value="1"></el-option>
                         <el-option label="维修类" value="2"></el-option>
                         <el-option label="扰民类" value="3"></el-option>
@@ -87,7 +90,11 @@
 
 <script>
 import { toastSuccess, toastFail } from '@/utils/notice'
+import { insertComplaintApi, selectComplaintApi, updateComplaintApi, deleteComplaintApi, selectComplaintByConditionsApi, delComplaintByIdsApi } from '@/request/api'
 export default {
+    mounted() {
+        this.queryComplaint();
+    },
     data() {
         return {
             searchComplaintForm: {
@@ -121,24 +128,53 @@ export default {
                 5: '停车类',
                 6: '物业不作为'
             },
+            complaintStatus: {
+                0: '不限状态',
+                1: '处理中',
+                2: '已完成',
+            },
             multipleSelection: [],
             addComplaintVisible: false,
             addComplaintForm: {
                 type: '',
-                content: ''
+                content: '',
+                status: 1
             },
             addComplaintFormRules: {
                 type: [{ required: true, message: '投诉类型不能不选！', trigger: 'change' }],
                 content: [{ required: true, message: '你具体要投诉什么？', trigger: 'blur' }]
             },
-            currentPage: 1,
-            pageSize: 10,
-            totalPage: 100
+            totalPage: 100,
+            pageForm: {      //当前页面信息
+                currentPage: 1,
+                pageSize: 7,
+                data: ''     //要传给后端的数据
+            },
         }
     },
     methods: {
-        searchComplaint() {
-            console.log(this.searchComplaintForm);
+        queryComplaint() {//分页查询所有的投诉并展示
+            selectComplaintApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.complaintData = [];//清空当前列表
+                res.data.list.forEach(complaint => {
+                    let tabelData = complaint;
+                    tabelData['ownerName'] = complaint.owner.name;
+                    this.complaintData.push(tabelData);
+                })
+            });
+        },
+        searchComplaint() {//搜索框搜索
+            this.pageForm.data = this.searchComplaintForm
+            selectComplaintByConditionsApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.complaintData = [];//清空当前列表
+                res.data.list.forEach(complaint => {
+                    let tabelData = complaint;
+                    tabelData['ownerName'] = complaint.owner.name;
+                    this.complaintData.push(tabelData);
+                })
+            })
         },
         delComplaint(row) {
             this.$confirm('你确定要删?', '提示', {
@@ -146,11 +182,12 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
+                deleteComplaintApi(row).then(res => {
+                    this.queryComplaint();
+                    toastSuccess(this, "删除成功!");
+                }).catch(err => {
+                    toastFail(this, "服务器繁忙，请稍后重试！");
+                })
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -175,11 +212,19 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
+
+                delComplaintByIdsApi(ids).then(res => {
+                    this.queryComplaint();
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                }).catch((err) => {
+                    this.$message({
+                        type: 'error',
+                        message: '删除失败，服务器繁忙！'
+                    });
                 });
-                console.log(ids);
             }).catch((err) => {
                 this.$message({
                     type: 'info',
@@ -198,11 +243,14 @@ export default {
                     cancelButtonText: '取消',
                     type: 'warning'
                 }).then(() => {
-                    this.$message({
-                        type: 'success',
-                        message: '投诉信息已经提交了，耐心等!'
-                    });
-                    console.log(this.addComplaintForm);
+                    insertComplaintApi(this.addComplaintForm).then(res => {
+                        toastSuccess(this, "投诉信息已经提交了，耐心等!");
+                        this.addComplaintVisible = false;
+                        this.queryComplaint();
+                    }).catch(err => {
+                        toastFail(this, "服务器繁忙，请稍后重试！");
+                    })
+
                 }).catch((err) => {
                     this.$message({
                         type: 'info',
@@ -212,8 +260,7 @@ export default {
             })
         },
         handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
+            this.queryComplaint();
         }
 
     }

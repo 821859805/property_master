@@ -1,20 +1,12 @@
 <template>
     <div style="margin:20px">
-        <el-form :inline="true" :model="searchUserForm">
-            <el-form-item>
-                <el-input v-model="searchUserForm.content" type="text" placeholder="请输入用户相关信息"></el-input>
-            </el-form-item>
-            <el-form-item>
-                <el-button type="primary" @click="searchUser">查询</el-button>
-            </el-form-item>
-        </el-form>
 
         <div style="background-color:white">
             <el-button type="warning" style="margin:10px" @click="addUserVisible = true">添加</el-button>
             <el-button type="danger" style="margin:10px" @click="delUsers">批量删除</el-button>
 
             <el-table ref="multipleTable" :data="userData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange" >
+                @selection-change="handleSelectionChange">
 
                 <el-table-column type="selection" :selectable="selectable" width="55" align="center"></el-table-column>
 
@@ -46,9 +38,11 @@
                 </el-table-column>
             </el-table>
 
+
+
             <el-pagination @current-change=" handleCurrentChange " :hide-on-single-page=" value "
-                :current-page.sync=" currentPage " :page-size=" pageSize " layout="total, prev, pager, next"
-                :total=" totalPage ">
+                :current-page.sync=" pageForm.currentPage " :page-size=" pageForm.pageSize "
+                layout="total, prev, pager, next" :total=" totalPage ">
             </el-pagination>
         </div>
 
@@ -77,9 +71,6 @@
         <el-dialog title="修改信息" :visible.sync=" updateUserVisible " width="30%">
             <el-form ref="updateUserForm" :model=" updateUserForm " :rules=" updateUserFormRules " label-width="100px"
                 style="width:290px">
-                <el-form-item prop="name" label="用户名">
-                    <el-input v-model=" updateUserForm.username "></el-input>
-                </el-form-item>
                 <el-form-item prop="password" label="密码" label-width="120px">
                     <el-input v-model=" updateUserForm.password " type="password" autocomplete="off"></el-input>
                 </el-form-item>
@@ -99,8 +90,12 @@
 </template>
 
 <script>
+import { insertUserApi, selectUserApi, selectUserByContentApi, updateUserApi, deleteUserApi, delUserByIdsApi, lockUserApi, unlockUserApi,resetPwdApi } from '@/request/api'
 import { toastSuccess, toastFail } from '@/utils/notice'
 export default {
+    mounted() {
+        this.queryUser();
+    },
     data() {
         //对第二次输入的密码进行验证
         var validateCheck = (rule, value, callback) => {
@@ -180,14 +175,30 @@ export default {
                 ],
                 checkpwd: [{ validator: validateCheck2, trigger: 'blur' }]
             },
-            currentPage: 1,
-            pageSize: 10,
-            totalPage: 100
+            totalPage: 100,
+            pageForm: {      //当前页面信息
+                currentPage: 1,
+                pageSize: 7,
+                data: ''     //要传给后端的数据
+            },
         }
     },
     methods: {
+        queryUser() {//分页查询所有用户并展示
+            selectUserApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.userData = res.data.list;
+            }).catch(err => {
+                toastFail(this, "服务器繁忙，操作失败！")
+            });
+        },
         searchUser() {
             console.log(this.searchUserForm);
+            selectUserByContentApi(this.searchUserForm).then(res => {
+                console.log(res.data);
+                this.totalPage = res.data.total;
+                this.userData = res.data;
+            })
         },
         delUser(row) {
             this.$confirm('你确定要删?', '提示', {
@@ -196,10 +207,14 @@ export default {
                 type: 'warning'
             }).then(() => {
                 console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
+                deleteUserApi(row).then(res => {
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    })
+                    this.queryUser();
+                })
+
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -219,11 +234,14 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
-                console.log(ids);
+                delUserByIdsApi(ids).then(res => {
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    })
+                    this.queryUser();
+                })
+
             }).catch((err) => {
                 this.$message({
                     type: 'info',
@@ -242,11 +260,14 @@ export default {
                     cancelButtonText: '取消',
                     type: 'warning'
                 }).then(() => {
-                    this.$message({
-                        type: 'success',
-                        message: '已添加成功！'
-                    });
-                    console.log(this.addUserForm);
+                    insertUserApi(this.addUserForm).then(res => {
+                        this.queryUser();
+                        this.addUserVisible = false;
+                        this.$message({
+                            type: 'success',
+                            message: '已添加成功！'
+                        });
+                    })
                 }).catch(() => {
                     this.$message({
                         type: 'info',
@@ -265,11 +286,14 @@ export default {
                     cancelButtonText: '取消',
                     type: 'warning'
                 }).then(() => {
-                    this.$message({
-                        type: 'success',
-                        message: '已修改成功！'
-                    });
-                    console.log(this.updateUserForm);
+                    updateUserApi(this.updateUserForm).then(res => {
+                        this.updateUserVisible = false;
+                        this.queryUser();
+                        this.$message({
+                            type: 'success',
+                            message: '已修改成功！'
+                        });
+                    })
                 }).catch(() => {
                     this.$message({
                         type: 'info',
@@ -289,10 +313,14 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$message({
-                    type: 'success',
-                    message: '解封成功！'
-                });
+                unlockUserApi(row).then(res => {
+                    this.$message({
+                        type: 'success',
+                        message: '解封成功！'
+                    });
+                    this.queryUser();
+                })
+
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -308,10 +336,14 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$message({
-                    type: 'success',
-                    message: '已经把他的号封了！'
-                });
+                lockUserApi(row).then(res => {
+                    this.$message({
+                        type: 'success',
+                        message: '已经把他的号封了！'
+                    });
+                    this.queryUser();
+                })
+
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -321,7 +353,23 @@ export default {
 
         },
         resetPwd(row) {
-            console.log(row);
+            this.$confirm('你确定要重置密码？', '提示', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(() => {
+                resetPwdApi(row).then(res => {
+                    this.$message({
+                        type: 'success',
+                        message: '已经重置成功！新密码为123456！'
+                    });
+                })
+            }).catch(() => {
+                this.$message({
+                    type: 'info',
+                    message: '已取消重置密码'
+                });
+            });
         },
         selectable: function (row, index) {
             // 只有业主才能被选中

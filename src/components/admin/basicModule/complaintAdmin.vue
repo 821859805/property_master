@@ -3,6 +3,7 @@
         <el-form :inline="true" :model="searchComplaintForm">
             <el-form-item label="投诉类型">
                 <el-select v-model="searchComplaintForm.type" placeholder="请选择投诉类型">
+                    <el-option label="不限类型" value="0"></el-option>
                     <el-option label="质量类" value="1"></el-option>
                     <el-option label="维修类" value="2"></el-option>
                     <el-option label="扰民类" value="3"></el-option>
@@ -13,6 +14,7 @@
             </el-form-item>
             <el-form-item label="处理状态">
                 <el-select v-model="searchComplaintForm.status" placeholder="请选择投诉状态">
+                    <el-option label="不限状态" value="0"></el-option>
                     <el-option label="处理中" value="1"></el-option>
                     <el-option label="已完成" value="2"></el-option>
                 </el-select>
@@ -53,8 +55,10 @@
                 </el-table-column>
             </el-table>
 
+
             <el-pagination @current-change="handleCurrentChange" :hide-on-single-page="value"
-                :current-page.sync="currentPage" :page-size="pageSize" layout="total, prev, pager, next" :total="totalPage">
+                :current-page.sync="pageForm.currentPage" :page-size="pageForm.pageSize" layout="total, prev, pager, next"
+                :total="totalPage">
             </el-pagination>
         </div>
 
@@ -62,42 +66,19 @@
 </template>
 
 <script>
-import { toastSuccess, toastFail } from '@/utils/notice'
+import {selectComplaintByAdminApi,selectComplaintByConditionsByAdminApi,completeComplaintByAdminApi,deleteComplaintByAdminApi,delComplaintByIdsByAdminApi} from '@/request/api'
+import { toastSuccess, toastFail } from '@/utils/notice' 
 export default {
+    mounted() {
+        this.queryComplaint();
+    },
     data() {
         return {
             searchComplaintForm: {
                 type: '',
                 status: ''
             },
-            complaintData: [{
-                id: 1,
-                type: 1,
-                content: '123',
-                ownerName: 'fwe',
-                submitTime: '2023-4-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                status: 1,
-                adminName: 'admin'
-            }, {
-                id: 2,
-                type: 3,
-                content: '1234',
-                ownerName: 'fwe1',
-                submitTime: '2023-12-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                status: 2,
-                adminName: 'admin'
-            }, {
-                id: 3,
-                type: 4,
-                content: '12334',
-                ownerName: 'fw4e1',
-                submitTime: '2023-12-1 12:34:56',
-                completeTime: '2023-4-2 12:34:56',
-                status: 1,
-                adminName: 'admin'
-            }],
+            complaintData: [],
             complaintType: {
                 1: '质量类',
                 2: '维修类',
@@ -107,15 +88,39 @@ export default {
                 6: '物业不作为'
             },
             multipleSelection: [],
-            currentPage: 1,
-            pageSize: 10,
             totalPage: 100,
+            pageForm: {      //当前页面信息
+                currentPage: 1,
+                pageSize: 7,
+                data: ''     //要传给后端的数据
+            },
 
         }
     },
     methods: {
+        queryComplaint() {//分页查询所有的投诉并展示
+            selectComplaintByAdminApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.complaintData = [];//清空当前列表
+                console.log(res);
+                res.data.list.forEach(complaint => {
+                    let tabelData = complaint;
+                    tabelData['ownerName'] = complaint.owner.name;
+                    this.complaintData.push(tabelData);
+                })
+            });
+        },
         searchComplaint() {
-            console.log(this.searchComplaintForm);
+            this.pageForm.data = this.searchComplaintForm
+            selectComplaintByConditionsByAdminApi(this.pageForm).then(res => {
+                this.totalPage = res.data.total;
+                this.complaintData = [];//清空当前列表
+                res.data.list.forEach(complaint => {
+                    let tabelData = complaint;
+                    tabelData['ownerName'] = complaint.owner.name;
+                    this.complaintData.push(tabelData);
+                })
+            })
         },
         delComplaint(row) {
             this.$confirm('你确定要删?', '提示', {
@@ -123,11 +128,12 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
-                });
+                deleteComplaintByAdminApi(row).then(res => {
+                    this.queryComplaint();
+                    toastSuccess(this, "删除成功!");
+                }).catch(err => {
+                    toastFail(this, "服务器繁忙，请稍后重试！");
+                })
             }).catch(() => {
                 this.$message({
                     type: 'info',
@@ -140,12 +146,15 @@ export default {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
                 type: 'warning'
-            }).then(() => {
-                console.log(row);
-                this.$message({
-                    type: 'success',
-                    message: '处理完成!'
-                });
+            }).then(() => { 
+                completeComplaintByAdminApi(row).then(res => {
+                    this.queryComplaint();
+                    this.$message({
+                        type: 'success',
+                        message: '处理完成!'
+                    });
+                })
+
             })
         },
         delComplaints() {
@@ -160,11 +169,18 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$message({
-                    type: 'success',
-                    message: '删除成功!'
+                delComplaintByIdsByAdminApi(ids).then(res => {
+                    this.queryComplaint();
+                    this.$message({
+                        type: 'success',
+                        message: '删除成功!'
+                    });
+                }).catch((err) => {
+                    this.$message({
+                        type: 'error',
+                        message: '删除失败，服务器繁忙！'
+                    });
                 });
-                console.log(ids);
             }).catch((err) => {
                 this.$message({
                     type: 'info',
@@ -180,7 +196,7 @@ export default {
             console.log(this.pageSize);
         },
         selectable: function (row, index) {
-            if (row.status === 1)
+            if (row.status === 2)
                 return true;
         }
 
