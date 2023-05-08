@@ -6,7 +6,8 @@
             <el-button type="danger" style="margin:10px" @click="delUsers">批量删除</el-button>
 
             <el-table ref="multipleTable" :data="userData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange">
+                @selection-change="handleSelectionChange"
+                v-loading="loading">
 
                 <el-table-column type="selection" :selectable="selectable" width="55" align="center"></el-table-column>
 
@@ -120,22 +121,7 @@ export default {
             searchUserForm: {
                 content: ''
             },
-            userData: [{
-                id: 1,
-                username: 'admin',
-                type: '管理员',
-                status: '正常'
-            }, {
-                id: 2,
-                username: 'wef',
-                type: '业主',
-                status: '封禁'
-            }, {
-                id: 3,
-                username: 'weff',
-                type: '业主',
-                status: '正常'
-            }],
+            userData: [],
             multipleSelection: [],
             addUserVisible: false,
             addUserForm: {
@@ -181,24 +167,27 @@ export default {
                 pageSize: 7,
                 data: ''     //要传给后端的数据
             },
+            loading:true
         }
     },
     methods: {
         queryUser() {//分页查询所有用户并展示
+            this.loading = true;
             selectUserApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.userData = res.data.list;
             }).catch(err => {
                 toastFail(this, "服务器繁忙，操作失败！")
             });
+            this.loading = false;
         },
         searchUser() {
-            console.log(this.searchUserForm);
+            this.loading = true;
             selectUserByContentApi(this.searchUserForm).then(res => {
-                console.log(res.data);
                 this.totalPage = res.data.total;
                 this.userData = res.data;
             })
+            this.loading = false;
         },
         delUser(row) {
             this.$confirm('你确定要删?', '提示', {
@@ -206,7 +195,6 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
                 deleteUserApi(row).then(res => {
                     this.$message({
                         type: 'success',
@@ -277,8 +265,6 @@ export default {
             })
         },
         updateUser() {
-            console.log(this.updateUserForm);
-
             this.$refs.updateUserForm.validate(valid => {
                 if (!valid) return;
                 this.$confirm('你确定要修改？', '提示', {
@@ -302,12 +288,7 @@ export default {
                 });
             })
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
-        },
         unlockUser(row) {
-            console.log(row);
             this.$confirm('你确定要解封他的号？', '提示', {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
@@ -330,7 +311,6 @@ export default {
 
         },
         lockUser(row) {
-            console.log(row);
             this.$confirm('你确定要封他号？', '提示', {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
@@ -378,6 +358,9 @@ export default {
             }
 
         },
+        handleCurrentChange(val) {
+            this.queryUser();
+        }
 
     }
 }

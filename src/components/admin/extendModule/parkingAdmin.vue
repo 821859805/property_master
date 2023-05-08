@@ -21,7 +21,8 @@
             <el-button type="danger" style="margin:10px" @click="delParkings">批量删除</el-button>
 
             <el-table ref="multipleTable" :data="parkingData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange">
+                @selection-change="handleSelectionChange"
+                v-loading="loading">
                 <el-table-column type="selection" width="55" align="center"></el-table-column>
                 <el-table-column prop="carNo" label="车位号" width="120" align="center"></el-table-column>
                 <el-table-column prop="status" label="状态" align="center" width="120">
@@ -122,6 +123,7 @@ export default {
             rentParkingVisible: false,
             searchParkingForm: {
             },
+            loading:true,
             rentParkingFormRules: {
                 ownerId: [{ required: true, message: '这个必须写！', trigger: 'blur' }],
             },
@@ -162,19 +164,21 @@ export default {
     },
     methods: {
         queryParking() {
+            this.loading = true;
             selectParkingByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.parkingData = [];//清空当前列表
-                console.log(res);
                 res.data.list.forEach(parking => {
                     let tabelData = parking;
                     if (parking.owner != null)
                         tabelData['ownerName'] = parking.owner.name;
                     this.parkingData.push(tabelData);
                 })
+                this.loading = false;
             });
         },
         searchParking() {
+            this.loading = true;
             this.pageForm.data = this.searchParkingForm;
             selectParkingByConditionsByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
@@ -185,6 +189,7 @@ export default {
                         tabelData['ownerName'] = parking.owner.name;
                     this.parkingData.push(tabelData);
                 })
+                this.loading = false;
             })
         },
         delParking(row) {
@@ -281,12 +286,7 @@ export default {
                 });
             })
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
-        },
         rentParking() {    
-            console.log(this.rentParkingForm);
             this.$refs.rentParkingForm.validate(valid => {
                 if (!valid) return;
                 this.$confirm('你确定要把车位租给他？', '提示', {
@@ -337,6 +337,9 @@ export default {
                     message: '已取消'
                 });
             });
+        },
+        handleCurrentChange(val) {
+            this.queryParking();
         }
     }
 }

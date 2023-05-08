@@ -30,7 +30,8 @@
             <el-button type="danger" style="margin:10px" @click="delComplaints">批量删除</el-button>
 
             <el-table ref="multipleTable" :data="complaintData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange">
+                @selection-change="handleSelectionChange"
+                v-loading="loading">
                 <el-table-column type="selection" width="55" align="center"></el-table-column>
                 <el-table-column label="投诉类型" width="120" align="center">
                     <template slot-scope="scope">
@@ -101,6 +102,7 @@ export default {
                 type: '',
                 status: ''
             },
+            loading:true,
             complaintData: [{
                 id: 1,
                 type: 1,
@@ -154,6 +156,7 @@ export default {
     },
     methods: {
         queryComplaint() {//分页查询所有的投诉并展示
+            this.loading = true;
             selectComplaintApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.complaintData = [];//清空当前列表
@@ -162,9 +165,11 @@ export default {
                     tabelData['ownerName'] = complaint.owner.name;
                     this.complaintData.push(tabelData);
                 })
+                this.loading = false;
             });
         },
         searchComplaint() {//搜索框搜索
+            this.loading = true;
             this.pageForm.data = this.searchComplaintForm
             selectComplaintByConditionsApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
@@ -174,6 +179,7 @@ export default {
                     tabelData['ownerName'] = complaint.owner.name;
                     this.complaintData.push(tabelData);
                 })
+                this.loading = false;
             })
         },
         delComplaint(row) {

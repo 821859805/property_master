@@ -24,7 +24,7 @@
         </el-form>
 
         <div style="background-color:white">
-            <el-table :data="feeData" tooltip-effect="dark" style="width: 100%">
+            <el-table :data="feeData" tooltip-effect="dark" style="width: 100%" v-loading="loading">
                 <el-table-column prop="ownerName" label="缴费人" align="center"></el-table-column>
                 <el-table-column label="费用类型" width="120" align="center">
                     <template slot-scope="scope">
@@ -84,23 +84,26 @@ export default {
                 currentPage: 1,
                 pageSize: 7,
                 data: ''     //要传给后端的数据
-            }
+            },
+            loading:true
         }
     },
     methods: {
         queryFee() {
+            this.loading = true;
             selectFeeApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.feeData = [];//清空当前列表
-                console.log(res);
                 res.data.list.forEach(fee => {
                     let tabelData = fee;
                     tabelData['ownerName'] = fee.owner.name;
                     this.feeData.push(tabelData);
                 })
             });
+            this.loading=false;
         },
         searchFee() {
+            this.loading = true;
             this.pageForm.data = this.searchFeeForm
             selectFeeByConditionsApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
@@ -111,9 +114,9 @@ export default {
                     this.feeData.push(tabelData);
                 })
             })
+            this.loading = false;
         },
         payFee(row) {
-            console.log(row)
             completeFeeApi(row).then(res=>{
                 toastSuccess(this,"成功缴费！");
                 this.queryFee();
@@ -140,9 +143,8 @@ export default {
                 });
             });
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
+        handleCurrentChange(val) {
+            this.queryFee();
         }
 
     }

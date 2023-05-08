@@ -26,7 +26,8 @@
         <div style="background-color:white">
             <el-button type="warning" style="margin:10px" @click="addFeeVisible = true">新增</el-button>
             <el-button type="danger" style="margin:10px" @click="delFees">批量删除</el-button>
-            <el-table :data="feeData" tooltip-effect="dark" style="width: 100%" @selection-change="handleSelectionChange">
+            <el-table :data="feeData" tooltip-effect="dark" style="width: 100%" @selection-change="handleSelectionChange"
+            v-loading="loading">
                 <el-table-column type="selection" width="55" align="center" :selectable="selectable"></el-table-column>
                 <el-table-column prop="ownerName" label="缴费人" align="center"></el-table-column>
                 <el-table-column label="费用类型" width="120" align="center">
@@ -96,6 +97,7 @@ export default {
                 status: ''
             },
             feeData: [],
+            loading:true,
             feeType: {
                 1: '物业费',
                 2: '水费',
@@ -142,21 +144,23 @@ export default {
     },
     methods: {
         queryFee() {
+            this.loading = true;
             selectFeeByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.feeData = [];//清空当前列表
-                console.log(res);
                 res.data.list.forEach(fee => {
                     let tabelData = fee;
                     tabelData['ownerName'] = fee.owner.name;
                     this.feeData.push(tabelData);
                 })
+                this.loading = false;
             });
         },
         handleSelectionChange(val) {
             this.multipleSelection = val;
         },
         searchFee() {
+            this.loading = true;
             this.pageForm.data = this.searchFeeForm
             selectFeeByConditionsByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
@@ -166,6 +170,7 @@ export default {
                     tabelData['ownerName'] = fee.owner.name;
                     this.feeData.push(tabelData);
                 })
+                this.loading = false;
             })
         },
         delFee(row) {
@@ -215,10 +220,6 @@ export default {
                 });
             });
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
-        },
         addFee() {
             this.$refs.addFeeForm.validate(valid => {
                 if (!valid) return;
@@ -247,6 +248,9 @@ export default {
                 });
             })
         },
+        handleCurrentChange(val) {
+            this.queryFee();
+        }
 
     }
 }

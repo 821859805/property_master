@@ -28,7 +28,8 @@
             <el-button type="danger" style="margin:10px" @click="delRepairs">批量删除</el-button>
 
             <el-table ref="multipleTable" :data="repairData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange">
+                @selection-change="handleSelectionChange"
+                v-loading="loading">
                 <el-table-column type="selection" width="55" align="center" :selectable="selectable"></el-table-column>
                 <el-table-column label="报修类型" width="120" align="center">
                     <template slot-scope="scope">
@@ -97,25 +98,27 @@ export default {
                 currentPage: 1,
                 pageSize: 7,
                 data: ''     //要传给后端的数据
-            }
+            },
+            loading:true
 
         }
     },
     methods: {
         queryRepair() {//分页查询所有的投诉并展示
+            this.loading = true;
             selectRepairByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.repairData = [];//清空当前列表
-                console.log(res);
                 res.data.list.forEach(repair => {
                     let tabelData = repair;
                     tabelData['ownerName'] = repair.owner.name;
                     this.repairData.push(tabelData);
                 })
+                this.loading = false;
             });
         },
         searchRepair() {
-            console.log(this.searchRepairForm);
+            this.loading = true;
             this.pageForm.data = this.searchRepairForm
             selectRepairByConditionsByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
@@ -125,6 +128,7 @@ export default {
                     tabelData['ownerName'] = repair.owner.name;
                     this.repairData.push(tabelData);
                 })
+                this.loading = false;
             })
         },
         delRepair(row) {
@@ -196,13 +200,12 @@ export default {
         handleSelectionChange(val) {
             this.multipleSelection = val;
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
-        },
         selectable: function (row, index) {
             if (row.status === 2)
                 return true;
+        },
+        handleCurrentChange(val) {
+            this.queryRepair();
         }
 
     }

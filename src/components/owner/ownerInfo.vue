@@ -114,7 +114,7 @@
 
         <el-tab-pane label="家庭成员信息">
             <el-button type="primary" @click="addMemberVisible = true">新增</el-button>
-            <el-table :data="familyData" stripe style="width: 100%">
+            <el-table :data="familyData" stripe style="width: 100%" v-loading="loading">
                 <el-table-column prop="name" label="姓名" align="center"></el-table-column>
                 <el-table-column prop="sex" label="性别" align="center"></el-table-column>
                 <el-table-column prop="age" label="年龄" align="center"></el-table-column>
@@ -190,6 +190,7 @@ export default {
     },
     data() {
         return {
+            loading:true,
             activeIndex: '',
             personalInfoForm: {
                 name: '',
@@ -252,15 +253,17 @@ export default {
     },
     methods: {
         queryPersonalInfo() {//查询业主个人信息
+            this.loading = true;
             selectOwnerApi().then(res => {
                 this.personalInfoForm = res.data;
-
             }).catch(err => {
                 console.log(err);
             });
+            this.loading = false;
 
         },
         queryBuildingInfo() {//查询业主住房信息
+            this.loading = true;
             selectHouseApi().then(res => {
                 this.buildingForm = res.data.house
                 selectBuildingApi().then(res => {
@@ -271,9 +274,9 @@ export default {
                     this.buildingForm.unit = res.data.unit;
                     this.buildingForm.room = res.data.room;
                     selectParkingApi().then(res =>{
-                        console.log(res);
                         this.buildingForm.carNo=res.data.carNo;
                     })
+                    this.loading = false;
                 });
             }).catch(err => {
                 console.log(err);
@@ -358,7 +361,6 @@ export default {
             });
         },
         submitBuildingInfo() {//修改业主住房信息
-            console.log(this.buildingForm);
             updateHouseApi(this.buildingForm).then(res => {
                 toastSuccess(this, "修改成功！")
             }).catch(err => {
@@ -381,6 +383,9 @@ export default {
 
             })
         },
+        handleCurrentChange(val) {
+            this.queryMemberInfo();
+        }
     }
 
 }

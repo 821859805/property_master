@@ -72,7 +72,6 @@ export default {
             //每一个validator里面都要有callback()，否则validate里面方法不执行
             this.$refs.alterPwdRuleForm.validate(valid => {
                 if (!valid) return;
-                console.log(this.alterPwdForm);
                 alterPasswordApi(this.alterPwdForm).then(res => {
                     switch (res.code) {
                         case 20000:

@@ -28,7 +28,7 @@
             <el-button type="danger" style="margin:10px" @click="delComplaints">批量删除</el-button>
 
             <el-table ref="multipleTable" :data="complaintData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange">
+                @selection-change="handleSelectionChange" v-loading="loading">
                 <el-table-column type="selection" width="55" align="center" :selectable="selectable"></el-table-column>
                 <el-table-column label="投诉类型" width="120" align="center">
                     <template slot-scope="scope">
@@ -66,8 +66,8 @@
 </template>
 
 <script>
-import {selectComplaintByAdminApi,selectComplaintByConditionsByAdminApi,completeComplaintByAdminApi,deleteComplaintByAdminApi,delComplaintByIdsByAdminApi} from '@/request/api'
-import { toastSuccess, toastFail } from '@/utils/notice' 
+import { selectComplaintByAdminApi, selectComplaintByConditionsByAdminApi, completeComplaintByAdminApi, deleteComplaintByAdminApi, delComplaintByIdsByAdminApi } from '@/request/api'
+import { toastSuccess, toastFail } from '@/utils/notice'
 export default {
     mounted() {
         this.queryComplaint();
@@ -87,6 +87,7 @@ export default {
                 5: '停车类',
                 6: '物业不作为'
             },
+            loading: true,
             multipleSelection: [],
             totalPage: 100,
             pageForm: {      //当前页面信息
@@ -102,12 +103,12 @@ export default {
             selectComplaintByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.complaintData = [];//清空当前列表
-                console.log(res);
                 res.data.list.forEach(complaint => {
                     let tabelData = complaint;
                     tabelData['ownerName'] = complaint.owner.name;
                     this.complaintData.push(tabelData);
                 })
+                this.loading = false;
             });
         },
         searchComplaint() {
@@ -146,7 +147,7 @@ export default {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
                 type: 'warning'
-            }).then(() => { 
+            }).then(() => {
                 completeComplaintByAdminApi(row).then(res => {
                     this.queryComplaint();
                     this.$message({
@@ -191,13 +192,12 @@ export default {
         handleSelectionChange(val) {
             this.multipleSelection = val;
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
-        },
         selectable: function (row, index) {
             if (row.status === 2)
                 return true;
+        },
+        handleCurrentChange(val) {
+            this.queryComplaint();
         }
 
     }

@@ -30,7 +30,8 @@
             <el-button type="danger" style="margin:10px" @click="delRepairs">批量删除</el-button>
 
             <el-table ref="multipleTable" :data="repairData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange">
+                @selection-change="handleSelectionChange"
+                v-loading="loading">
                 <el-table-column type="selection" width="55" align="center"></el-table-column>
                 <el-table-column prop="ownerName" label="报修人" align="center"></el-table-column>
                 <el-table-column label="报修类型" width="120" align="center">
@@ -164,6 +165,7 @@ export default {
                 pageSize: 7,
                 data: ''     //要传给后端的数据
             },
+            loading:true
         }
     },
     methods: {
@@ -172,11 +174,10 @@ export default {
             formData.append("file", param.file);
             uploadOwnerPictureApi(formData).then(resp => {
                 this.addRepairForm.imageUrl = "http://localhost:8086/api/images/upload/" + resp
-            }).catch(err => {
-
             })
         },
         queryRepair() {//分页查询所有的报修并展示
+            this.loading = true;
             selectRepairApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.repairData = [];//清空当前列表
@@ -186,8 +187,10 @@ export default {
                     this.repairData.push(tabelData);
                 })
             });
+            this.loading = false;
         },
         searchRepair() {//搜索框搜索
+            this.loading = true;
             this.pageForm.data = this.searchRepairForm
             selectRepairByConditionsApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
@@ -198,6 +201,7 @@ export default {
                     this.repairData.push(tabelData);
                 })
             })
+            this.loading = false;
         },
 
         delRepair(row) {
@@ -281,11 +285,9 @@ export default {
                 });
             })
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
+        handleCurrentChange(val) {
+            this.queryRepair();
         }
-
     }
 }
 </script>

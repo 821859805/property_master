@@ -3,7 +3,9 @@
         <div style="background-color:white">
 
             <el-table ref="multipleTable" :data="ownerData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange">
+                @selection-change="handleSelectionChange"
+                v-loading="loading">
+                <el-table-column prop="id" label="id" width="120" align="center"></el-table-column>
                 <el-table-column prop="name" label="姓名" width="120" align="center"></el-table-column>
                 <el-table-column prop="sex" label="性别" align="center"></el-table-column>
                 <el-table-column prop="birthday" label="生日" align="center"></el-table-column>
@@ -120,6 +122,7 @@ export default {
                 name: [{ required: true, message: '名字不能不写！', trigger: 'blur' }],
                 mobile: [{ required: true, message: '电话不能不写！', trigger: 'blur' }]
             },
+            loading:true,
             totalPage: 100,
             pageForm: {      //当前页面信息
                 currentPage: 1,
@@ -130,16 +133,20 @@ export default {
     },
     methods: {
         queryOwner() {
+            this.loading = true;
             selectOwnerByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.ownerData = res.data.list;
             });
+            this.loading = false;
         },
         searchOwner() {
+            this.loading = true;
             selectOwnerByContentByAdminApi(this.searchOwnerForm).then(res => {
                 this.totalPage = res.data.total;
                 this.ownerData = res.data.list;
             })
+            this.loading = false;
         },
         delOwner(row) {
             this.$confirm('你确定要删?', '提示', {
@@ -147,7 +154,6 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                console.log(row);
                 this.$message({
                     type: 'success',
                     message: '删除成功!'
@@ -175,7 +181,6 @@ export default {
                     type: 'success',
                     message: '删除成功!'
                 });
-                console.log(ids);
             }).catch((err) => {
                 this.$message({
                     type: 'info',
@@ -198,7 +203,6 @@ export default {
                         type: 'success',
                         message: '已添加成功！'
                     });
-                    console.log(this.addOwnerForm);
                 }).catch(() => {
                     this.$message({
                         type: 'info',
@@ -233,9 +237,8 @@ export default {
                 });
             })
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
+        handleCurrentChange(val) {
+            this.queryOwner();
         }
 
     }

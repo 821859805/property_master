@@ -20,7 +20,7 @@
             <el-button type="danger" style="margin:10px" @click="delBuildings">批量删除</el-button>
 
             <el-table ref="multipleTable" :data="buildingData" tooltip-effect="dark" style="width: 100%"
-                @selection-change="handleSelectionChange">
+                @selection-change="handleSelectionChange" v-loading="loading">
                 <el-table-column type="selection" width="55" align="center"></el-table-column>
                 <el-table-column prop="housing" label="楼号" width="80" align="center"></el-table-column>
                 <el-table-column prop="unit" label="单元" width="80" align="center"></el-table-column>
@@ -131,7 +131,7 @@
 </template>
 
 <script>
-import { insertBuildingApi, selectBuildingByAdminApi, selectBuildingByConditionsByAdminApi, deleteBuildingByAdminApi, delBuildingByIdsByAdminApi, lodgeInApi, lodgeOutApi,updateBuildingByAdminApi } from '@/request/api'
+import { insertBuildingApi, selectBuildingByAdminApi, selectBuildingByConditionsByAdminApi, deleteBuildingByAdminApi, delBuildingByIdsByAdminApi, lodgeInApi, lodgeOutApi, updateBuildingByAdminApi } from '@/request/api'
 import { toastSuccess, toastFail } from '@/utils/notice'
 export default {
     mounted() {
@@ -185,34 +185,38 @@ export default {
                 currentPage: 1,
                 pageSize: 7,
                 data: ''     //要传给后端的数据
-            }
+            },
+            loading: true
         }
     },
     methods: {
         queryBuilding() {
+            this.loading = true;
             selectBuildingByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.buildingData = [];//清空当前列表
-                console.log(res);
                 res.data.list.forEach(building => {
                     let tabelData = building;
                     if (building.owner != null)
                         tabelData['ownerName'] = building.owner.name;
                     this.buildingData.push(tabelData);
                 })
+                this.loading = false;
             });
         },
         searchBuilding() {
+            this.loading = true;
             this.pageForm.data = this.searchBuildingForm;
             selectBuildingByConditionsByAdminApi(this.pageForm).then(res => {
                 this.totalPage = res.data.total;
                 this.buildingData = [];//清空当前列表
                 res.data.list.forEach(building => {
                     let tabelData = building;
-                    if (building.owner!=null)
+                    if (building.owner != null)
                         tabelData['ownerName'] = building.owner.name;
                     this.buildingData.push(tabelData);
                 })
+                this.loading = false;
             })
         },
         delBuilding(row) {
@@ -309,10 +313,6 @@ export default {
                 });
             })
         },
-        handleCurrentChange() {
-            console.log(this.currentPage);
-            console.log(this.pageSize);
-        },
         lodgeIn() {
             this.$refs.lodgeInForm.validate(valid => {
                 if (!valid) return;
@@ -329,10 +329,10 @@ export default {
                                 this.lodgeInVisible = false;
                                 break;
                             case 31404:
-                                toastFail(this,"业主id不存在！！！");
+                                toastFail(this, "业主id不存在！！！");
                                 break;
                             case 41404:
-                                toastFail(this,"这个业主已经有房子了，本系统致力于缩小贫富差距，因此一个业主只能有一个房子!");
+                                toastFail(this, "这个业主已经有房子了，本系统致力于缩小贫富差距，因此一个业主只能有一个房子!");
                                 break;
                         }
 
@@ -364,6 +364,9 @@ export default {
                     message: '已取消'
                 });
             });
+        },
+        handleCurrentChange(val) {
+            this.queryBuilding();
         }
     }
 }
